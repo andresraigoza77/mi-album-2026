@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title description">
+  <title id="title">Mi Álbum 2026</title>
+  <desc id="description">Icono verde con una figurita y el número 26</desc>
+  <rect width="512" height="512" rx="112" fill="#022c22"/>
+  <circle cx="424" cy="88" r="104" fill="#84cc16" opacity=".12"/>
+  <rect x="116" y="72" width="280" height="368" rx="40" fill="#bef264" transform="rotate(5 256 256)"/>
+  <rect x="132" y="88" width="248" height="336" rx="30" fill="#ecfccb"/>
+  <g fill="#047857">
+    <rect x="164" y="124" width="72" height="72" rx="16"/>
+    <rect x="276" y="124" width="72" height="72" rx="16"/>
+    <rect x="164" y="316" width="72" height="72" rx="16"/>
+    <rect x="276" y="316" width="72" height="72" rx="16"/>
+  </g>
+  <text x="256" y="290" text-anchor="middle" font-family="Arial, sans-serif" font-size="104" font-weight="900" fill="#022c22">26</text>
+</svg>
