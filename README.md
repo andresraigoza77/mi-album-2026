@@ -1,6 +1,6 @@
 # Mi Álbum 2026
 
-Aplicación web móvil primero para controlar una colección de figuritas de fútbol 2026. Funciona sin cuenta ni backend: el progreso se guarda localmente en el navegador.
+Aplicación web móvil primero para controlar una colección de figuritas de fútbol 2026. El progreso siempre se guarda localmente y, de forma opcional, puede sincronizarse por usuario mediante Supabase.
 
 ## Funcionalidades
 
@@ -10,6 +10,7 @@ Aplicación web móvil primero para controlar una colección de figuritas de fú
 - Listas de faltantes y repetidas agrupadas por país.
 - Copia de listas y uso compartido por WhatsApp.
 - Persistencia automática en `localStorage`.
+- Inicio de sesión con Google y respaldo opcional del progreso en Supabase.
 - Exportación, importación validada y reinicio del progreso.
 - Carga voluntaria del avance inicial leído desde la checklist física.
 - PWA instalable con soporte offline básico.
@@ -26,6 +27,7 @@ En el dashboard, el botón **Cargar avance de la imagen** reemplaza el estado ac
 - TypeScript
 - Tailwind CSS 4
 - `localStorage`
+- Supabase Auth y base de datos
 - Web App Manifest y service worker
 
 ## Requisitos
@@ -48,6 +50,15 @@ npm run dev
 ```
 
 Abre [http://localhost:3000](http://localhost:3000). El progreso permanece únicamente en el almacenamiento local de ese navegador.
+
+Para habilitar autenticación y sincronización en la nube, crea `.env.local` con:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=tu_url_de_supabase
+NEXT_PUBLIC_SUPABASE_ANON_KEY=tu_clave_anonima
+```
+
+La tabla `public.album_progress` debe permitir leer e insertar/actualizar la fila cuyo `user_id` corresponda al usuario autenticado mediante sus políticas RLS. En despliegues de Vercel o Netlify, configura las mismas variables en el panel del proyecto y registra la URL pública entre las URLs de redirección autorizadas de Supabase Auth.
 
 Para probar el build de producción:
 
@@ -86,7 +97,8 @@ En un navegador compatible, abre el build de producción mediante HTTPS —o sí
 1. Sube el proyecto a GitHub, GitLab o Bitbucket.
 2. En Vercel, selecciona **Add New Project** e importa el repositorio.
 3. Conserva el framework detectado como **Next.js**.
-4. Despliega el proyecto. Esta versión no necesita variables de entorno.
+4. Configura `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` en **Environment Variables**.
+5. Despliega el proyecto.
 
 Vercel ejecutará `npm run build` y publicará la aplicación mediante HTTPS, requisito necesario para instalar la PWA fuera de `localhost`.
 
@@ -113,7 +125,8 @@ Para desplegar desde un repositorio Git:
 2. En Netlify, selecciona **Add new project** y después **Import an existing project**.
 3. Conecta el proveedor Git y selecciona el repositorio.
 4. Comprueba que Netlify detecte Next.js. Los valores de build se leerán desde `netlify.toml`.
-5. Selecciona **Deploy**. Esta versión no necesita variables de entorno.
+5. Añade `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` en la configuración de variables de entorno.
+6. Selecciona **Deploy**.
 
 Netlify publicará la aplicación mediante HTTPS, por lo que podrá instalarse como PWA desde navegadores compatibles.
 
@@ -128,6 +141,7 @@ public/       Manifest, service worker e iconos PWA
 
 ## Privacidad y alcance
 
-- No hay login, backend ni analítica.
-- El progreso no sale del dispositivo salvo cuando el usuario exporta o comparte una lista.
+- El login con Google es opcional; sin sesión, la app continúa funcionando únicamente con `localStorage`.
+- Con sesión iniciada, el progreso se sincroniza con `public.album_progress` en Supabase.
+- No se incluye analítica.
 - No se utilizan marcas, logos ni imágenes oficiales.

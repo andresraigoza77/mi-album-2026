@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { AlbumDataTools } from "@/components/AlbumDataTools";
+import { CloudSyncControls } from "@/components/CloudSyncControls";
 import { DashboardSummary } from "@/components/DashboardSummary";
 import { albumGroups, totalTeams, totalTeamStickers } from "@/lib/albumData";
 
@@ -38,6 +39,8 @@ export default function HomePage() {
       </section>
 
       <DashboardSummary />
+
+      <CloudSyncControls />
 
       <AlbumDataTools />
 

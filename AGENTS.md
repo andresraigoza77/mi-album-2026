@@ -33,6 +33,8 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Las transformaciones y cálculos del álbum deben permanecer como funciones puras en `lib/albumState.ts`.
 - No añadir backend, autenticación ni servicios externos sin una fase que lo autorice.
 - La persistencia debe permanecer aislada en `lib/albumStorage.ts`; no acceder a `localStorage` durante el renderizado del servidor.
+- La sincronización autorizada con Supabase debe permanecer aislada en `lib/albumCloudStorage.ts` y nunca impedir el funcionamiento local.
+- Toda fila de `public.album_progress` debe consultarse o guardarse usando el `user_id` de la sesión actual.
 - Validar completamente los datos almacenados antes de incorporarlos al estado y reconstruir el estado inicial si son inválidos.
 - La importación JSON debe usar la misma validación estructural que la persistencia y nunca reemplazar el estado cuando falle.
 - El reinicio completo del álbum siempre debe solicitar confirmación explícita.
