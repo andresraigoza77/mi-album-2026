@@ -1,6 +1,5 @@
 import Link from "next/link";
 
-import { AlbumDataTools } from "@/components/AlbumDataTools";
 import { CloudSyncControls } from "@/components/CloudSyncControls";
 import { DashboardSummary } from "@/components/DashboardSummary";
 import { albumGroups, totalTeams, totalTeamStickers } from "@/lib/albumData";
@@ -41,8 +40,6 @@ export default function HomePage() {
       <DashboardSummary />
 
       <CloudSyncControls />
-
-      <AlbumDataTools />
 
       <section aria-labelledby="album-map-title">
         <div className="mb-4 flex items-end justify-between gap-4">

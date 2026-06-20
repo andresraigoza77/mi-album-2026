@@ -11,7 +11,6 @@ export function CloudSyncControls() {
     isCloudReady,
     signInWithGoogle,
     signOut,
-    syncWithCloud,
   } = useAlbumState();
   const [feedback, setFeedback] = useState("");
 
@@ -29,24 +28,13 @@ export function CloudSyncControls() {
     );
   }
 
-  async function handleSync() {
-    const completed = await syncWithCloud();
-    setFeedback(
-      completed
-        ? "Progreso sincronizado con la nube."
-        : "No se pudo sincronizar el progreso.",
-    );
-  }
-
   const statusText = !isCloudReady
     ? "Comprobando sesión…"
-    : cloudStatus === "syncing"
-      ? "Sincronizando…"
-      : cloudStatus === "synced"
-        ? "Progreso sincronizado"
-        : cloudStatus === "error"
-          ? "No se pudo conectar con la nube"
-          : "Solo en este dispositivo";
+    : cloudStatus === "saving" || cloudStatus === "loading"
+      ? "Guardando…"
+      : cloudStatus === "saved"
+        ? "Guardado en la nube"
+        : "Sin conexión: guardado localmente";
 
   return (
     <section
@@ -59,11 +47,13 @@ export function CloudSyncControls() {
             Respaldo en la nube
           </p>
           <h2 id="cloud-sync-title" className="mt-1 text-2xl font-black text-slate-950">
-            {cloudUser ? "Tu álbum está conectado" : "Guarda tu álbum por usuario"}
+            {cloudUser
+              ? `Sesión iniciada como ${cloudUser.email ?? "usuario de Google"}`
+              : "Guarda tu álbum por usuario"}
           </h2>
           <p className="mt-2 text-sm leading-6 text-slate-600">
             {cloudUser
-              ? `Sesión iniciada como ${cloudUser.email ?? "usuario de Google"}.`
+              ? "Tu progreso se sincroniza automáticamente entre dispositivos."
               : "Inicia sesión con Google para conservar y recuperar tu progreso en Supabase."}
           </p>
           <p className="mt-2 text-xs font-bold text-sky-800" aria-live="polite">
@@ -73,29 +63,19 @@ export function CloudSyncControls() {
 
         <div className="flex shrink-0 flex-wrap gap-3">
           {cloudUser ? (
-            <>
-              <button
-                type="button"
-                onClick={handleSync}
-                disabled={!isCloudReady || cloudStatus === "syncing"}
-                className="data-tool-button bg-sky-700 text-white hover:bg-sky-800"
-              >
-                Sincronizar con la nube
-              </button>
-              <button
-                type="button"
-                onClick={handleSignOut}
-                disabled={cloudStatus === "syncing"}
-                className="data-tool-button border border-slate-300 bg-white text-slate-800 hover:bg-slate-100"
-              >
-                Cerrar sesión
-              </button>
-            </>
+            <button
+              type="button"
+              onClick={handleSignOut}
+              disabled={cloudStatus === "saving"}
+              className="data-tool-button border border-slate-300 bg-white text-slate-800 hover:bg-slate-100"
+            >
+              Cerrar sesión
+            </button>
           ) : (
             <button
               type="button"
               onClick={handleSignIn}
-              disabled={!isCloudReady || cloudStatus === "syncing"}
+              disabled={!isCloudReady || cloudStatus === "loading"}
               className="data-tool-button bg-sky-700 text-white hover:bg-sky-800"
             >
               Iniciar sesión con Google

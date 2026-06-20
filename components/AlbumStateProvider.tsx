@@ -1,6 +1,14 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import type { User } from "@supabase/supabase-js";
 
 import {
@@ -23,7 +31,7 @@ import {
 } from "@/lib/albumStorage";
 import type { AlbumState } from "@/lib/types";
 
-export type CloudSyncStatus = "idle" | "syncing" | "synced" | "error";
+export type CloudSyncStatus = "idle" | "loading" | "saving" | "saved" | "offline";
 
 type AlbumStateContextValue = {
   state: AlbumState;
@@ -37,7 +45,6 @@ type AlbumStateContextValue = {
   resetAlbum: () => void;
   signInWithGoogle: () => Promise<boolean>;
   signOut: () => Promise<boolean>;
-  syncWithCloud: () => Promise<boolean>;
 };
 
 const AlbumStateContext = createContext<AlbumStateContextValue | null>(null);
@@ -46,21 +53,56 @@ export function AlbumStateProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AlbumState>(initializeAlbumState);
   const [isReady, setIsReady] = useState(false);
   const [cloudUser, setCloudUser] = useState<User | null>(null);
-  const [cloudStatus, setCloudStatus] = useState<CloudSyncStatus>("idle");
+  const [cloudStatus, setCloudStatus] = useState<CloudSyncStatus>("loading");
   const [isCloudReady, setIsCloudReady] = useState(false);
+
+  const stateRef = useRef<AlbumState>(state);
+  const applyingCloudStateRef = useRef(false);
+  const dirtyRef = useRef(false);
+  const localRevisionRef = useRef(0);
+  const isSavingRef = useRef(false);
+  const saveDebouncePendingRef = useRef(false);
+  const refreshInFlightRef = useRef(false);
+  const cloudWritesEnabledRef = useRef(false);
+  const lastCloudUpdatedAtRef = useRef<string | null>(null);
+  const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
+
+  const persistStateToCloud = useCallback(
+    async (snapshot: AlbumState, revision: number): Promise<void> => {
+      isSavingRef.current = true;
+      setCloudStatus("saving");
+
+      try {
+        const savedSnapshot = await saveCloudAlbumState(snapshot);
+        if (!savedSnapshot) return;
+
+        lastCloudUpdatedAtRef.current = savedSnapshot.updatedAt;
+
+        if (revision === localRevisionRef.current && snapshot === stateRef.current) {
+          dirtyRef.current = false;
+          setCloudStatus("saved");
+        }
+      } catch {
+        setCloudStatus("offline");
+      } finally {
+        isSavingRef.current = false;
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     let active = true;
 
     const hydrationTask = window.setTimeout(async () => {
       const localState = loadAlbumState(window.localStorage);
-      if (!active) return;
+      stateRef.current = localState;
 
+      if (!active) return;
       setState(localState);
       setIsReady(true);
 
       try {
-        setCloudStatus("syncing");
         const user = await getCurrentUser();
         if (!active) return;
 
@@ -72,23 +114,32 @@ export function AlbumStateProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        const cloudState = await loadCloudAlbumState();
+        const cloudSnapshot = await loadCloudAlbumState();
         if (!active) return;
 
-        if (cloudState) {
-          setState(cloudState);
-          saveAlbumState(window.localStorage, cloudState);
+        if (cloudSnapshot) {
+          cloudWritesEnabledRef.current = true;
+          applyingCloudStateRef.current = true;
+          stateRef.current = cloudSnapshot.state;
+          lastCloudUpdatedAtRef.current = cloudSnapshot.updatedAt;
+          saveAlbumState(window.localStorage, cloudSnapshot.state);
+          setState(cloudSnapshot.state);
+          setCloudStatus("saved");
         } else {
-          await saveCloudAlbumState(localState);
-        }
+          cloudWritesEnabledRef.current = true;
+          dirtyRef.current = true;
+          const savedSnapshot = await saveCloudAlbumState(localState);
 
-        if (!active) return;
-        setCloudStatus("synced");
-        setIsCloudReady(true);
+          if (savedSnapshot) {
+            lastCloudUpdatedAtRef.current = savedSnapshot.updatedAt;
+            dirtyRef.current = false;
+            setCloudStatus("saved");
+          }
+        }
       } catch {
-        if (!active) return;
-        setCloudStatus("error");
-        setIsCloudReady(true);
+        setCloudStatus("offline");
+      } finally {
+        if (active) setIsCloudReady(true);
       }
     }, 0);
 
@@ -99,21 +150,108 @@ export function AlbumStateProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    stateRef.current = state;
     if (isReady) saveAlbumState(window.localStorage, state);
   }, [isReady, state]);
 
   useEffect(() => {
-    if (!isReady || !isCloudReady || !cloudUser) return;
+    if (!isReady || !isCloudReady || !cloudUser || !cloudWritesEnabledRef.current) return;
+
+    if (applyingCloudStateRef.current) {
+      applyingCloudStateRef.current = false;
+      return;
+    }
+
+    dirtyRef.current = true;
+    localRevisionRef.current += 1;
+    saveDebouncePendingRef.current = true;
+    setCloudStatus("saving");
 
     const cloudSaveTask = window.setTimeout(() => {
-      setCloudStatus("syncing");
-      saveCloudAlbumState(state)
-        .then(() => setCloudStatus("synced"))
-        .catch(() => setCloudStatus("error"));
-    }, 600);
+      saveDebouncePendingRef.current = false;
+      const snapshot = stateRef.current;
+      const revision = localRevisionRef.current;
 
-    return () => window.clearTimeout(cloudSaveTask);
-  }, [cloudUser, isCloudReady, isReady, state]);
+      saveQueueRef.current = saveQueueRef.current.then(() =>
+        persistStateToCloud(snapshot, revision),
+      );
+    }, 900);
+
+    return () => {
+      saveDebouncePendingRef.current = false;
+      window.clearTimeout(cloudSaveTask);
+    };
+  }, [cloudUser, isCloudReady, isReady, persistStateToCloud, state]);
+
+  useEffect(() => {
+    if (!isCloudReady || !cloudUser) return;
+
+    async function refreshFromCloud() {
+      if (
+        refreshInFlightRef.current ||
+        isSavingRef.current ||
+        saveDebouncePendingRef.current
+      ) {
+        return;
+      }
+
+      if (dirtyRef.current && cloudWritesEnabledRef.current) {
+        await persistStateToCloud(stateRef.current, localRevisionRef.current);
+        return;
+      }
+
+      refreshInFlightRef.current = true;
+
+      try {
+        const cloudSnapshot = await loadCloudAlbumState();
+        if (dirtyRef.current || isSavingRef.current) return;
+
+        if (!cloudSnapshot) {
+          if (!cloudWritesEnabledRef.current) {
+            cloudWritesEnabledRef.current = true;
+            dirtyRef.current = true;
+            await persistStateToCloud(stateRef.current, localRevisionRef.current);
+          }
+          return;
+        }
+
+        cloudWritesEnabledRef.current = true;
+
+        const cloudTime = Date.parse(cloudSnapshot.updatedAt);
+        const localCloudTime = lastCloudUpdatedAtRef.current
+          ? Date.parse(lastCloudUpdatedAtRef.current)
+          : 0;
+
+        if (lastCloudUpdatedAtRef.current === null || cloudTime > localCloudTime) {
+          applyingCloudStateRef.current = true;
+          stateRef.current = cloudSnapshot.state;
+          lastCloudUpdatedAtRef.current = cloudSnapshot.updatedAt;
+          saveAlbumState(window.localStorage, cloudSnapshot.state);
+          setState(cloudSnapshot.state);
+        }
+
+        setCloudStatus("saved");
+      } catch {
+        setCloudStatus("offline");
+      } finally {
+        refreshInFlightRef.current = false;
+      }
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") void refreshFromCloud();
+    }
+
+    const interval = window.setInterval(() => void refreshFromCloud(), 10_000);
+    window.addEventListener("focus", refreshFromCloud);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshFromCloud);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [cloudUser, isCloudReady, persistStateToCloud]);
 
   function changeSticker(teamCode: string, stickerNumber: number) {
     if (!isReady) return;
@@ -139,11 +277,11 @@ export function AlbumStateProvider({ children }: { children: ReactNode }) {
 
   async function signInWithGoogle(): Promise<boolean> {
     try {
-      setCloudStatus("syncing");
+      setCloudStatus("loading");
       await signInWithGoogleCloud();
       return true;
     } catch {
-      setCloudStatus("error");
+      setCloudStatus("offline");
       return false;
     }
   }
@@ -151,25 +289,13 @@ export function AlbumStateProvider({ children }: { children: ReactNode }) {
   async function signOut(): Promise<boolean> {
     try {
       await signOutCloud();
+      dirtyRef.current = false;
+      cloudWritesEnabledRef.current = false;
       setCloudUser(null);
       setCloudStatus("idle");
       return true;
     } catch {
-      setCloudStatus("error");
-      return false;
-    }
-  }
-
-  async function syncWithCloud(): Promise<boolean> {
-    if (!cloudUser) return false;
-
-    try {
-      setCloudStatus("syncing");
-      await saveCloudAlbumState(state);
-      setCloudStatus("synced");
-      return true;
-    } catch {
-      setCloudStatus("error");
+      setCloudStatus("offline");
       return false;
     }
   }
@@ -188,7 +314,6 @@ export function AlbumStateProvider({ children }: { children: ReactNode }) {
         resetAlbum,
         signInWithGoogle,
         signOut,
-        syncWithCloud,
       }}
     >
       {children}

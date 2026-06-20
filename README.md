@@ -18,7 +18,9 @@ Aplicación web móvil primero para controlar una colección de figuritas de fú
 
 El archivo de datos también incluye 18 figuritas especiales. El seguimiento interactivo actual comprende las 960 figuritas de las selecciones.
 
-En el dashboard, el botón **Cargar avance de la imagen** reemplaza el estado actual —previa confirmación— por las X azules interpretadas como figuritas conseguidas. Las figuritas no marcadas quedan como faltantes y ninguna se carga como repetida. La acción no se ejecuta automáticamente, por lo que los cambios manuales posteriores se conservan normalmente.
+La carga del avance leído desde la checklist interpreta las X azules como figuritas conseguidas, deja las demás como faltantes y no crea repetidas. Esta función, junto con exportación, importación y reinicio, permanece implementada internamente pero ya no se muestra en el dashboard principal.
+
+Cuando hay una sesión de Google, la app carga el estado de Supabase automáticamente, guarda cambios después de 900 ms sin actividad y revisa actualizaciones remotas cada 10 segundos o al recuperar el foco. Si Supabase no está disponible, `localStorage` continúa funcionando como respaldo.
 
 ## Tecnologías
 

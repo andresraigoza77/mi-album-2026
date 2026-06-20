@@ -13,6 +13,9 @@
 # testing
 /coverage
 
+# local recovery snapshots (may contain private album data)
+/recovery/
+
 # next.js
 /.next/
 /out/

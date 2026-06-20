@@ -9,6 +9,11 @@ import type { AlbumState } from "@/lib/types";
 
 const ALBUM_PROGRESS_TABLE = "album_progress";
 
+export type CloudAlbumSnapshot = {
+  state: AlbumState;
+  updatedAt: string;
+};
+
 export async function getCurrentUser(): Promise<User | null> {
   const { data, error } = await supabase.auth.getSession();
 
@@ -31,13 +36,13 @@ export async function signOut(): Promise<void> {
   if (error) throw error;
 }
 
-export async function loadCloudAlbumState(): Promise<AlbumState | null> {
+export async function loadCloudAlbumState(): Promise<CloudAlbumSnapshot | null> {
   const user = await getCurrentUser();
   if (!user) return null;
 
   const { data, error } = await supabase
     .from(ALBUM_PROGRESS_TABLE)
-    .select("album_state")
+    .select("album_state, updated_at")
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -45,7 +50,12 @@ export async function loadCloudAlbumState(): Promise<AlbumState | null> {
   if (!data) return null;
 
   const directResult = validateAlbumImport(JSON.stringify(data.album_state));
-  if (directResult.success) return directResult.state;
+  const updatedAt =
+    typeof data.updated_at === "string" ? data.updated_at : new Date(0).toISOString();
+
+  if (directResult.success) {
+    return { state: directResult.state, updatedAt };
+  }
 
   const wrappedResult = validateAlbumImport(
     JSON.stringify({
@@ -58,21 +68,33 @@ export async function loadCloudAlbumState(): Promise<AlbumState | null> {
     throw new Error("El progreso guardado en la nube tiene una estructura inválida.");
   }
 
-  return wrappedResult.state;
+  return { state: wrappedResult.state, updatedAt };
 }
 
-export async function saveCloudAlbumState(albumState: AlbumState): Promise<boolean> {
+export async function saveCloudAlbumState(
+  albumState: AlbumState,
+): Promise<CloudAlbumSnapshot | null> {
   const user = await getCurrentUser();
-  if (!user) return false;
+  if (!user) return null;
 
-  const { error } = await supabase.from(ALBUM_PROGRESS_TABLE).upsert(
-    {
-      user_id: user.id,
-      album_state: albumState,
-    },
-    { onConflict: "user_id" },
-  );
+  const updatedAt = new Date().toISOString();
+
+  const { data, error } = await supabase
+    .from(ALBUM_PROGRESS_TABLE)
+    .upsert(
+      {
+        user_id: user.id,
+        album_state: albumState,
+        updated_at: updatedAt,
+      },
+      { onConflict: "user_id" },
+    )
+    .select("updated_at")
+    .single();
 
   if (error) throw error;
-  return true;
+  return {
+    state: albumState,
+    updatedAt: typeof data.updated_at === "string" ? data.updated_at : updatedAt,
+  };
 }
