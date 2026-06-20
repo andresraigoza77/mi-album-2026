@@ -11,7 +11,7 @@ type Feedback = {
 } | null;
 
 export function AlbumDataTools() {
-  const { state, isReady, importAlbum, resetAlbum } = useAlbumState();
+  const { state, isReady, importAlbum, loadChecklistProgress, resetAlbum } = useAlbumState();
   const inputRef = useRef<HTMLInputElement>(null);
   const [feedback, setFeedback] = useState<Feedback>(null);
 
@@ -56,6 +56,24 @@ export function AlbumDataTools() {
     setFeedback({ tone: "success", message: "El álbum se reinició correctamente." });
   }
 
+  function confirmChecklistLoad() {
+    const confirmed = window.confirm(
+      "Esto reemplazará tu avance actual por el avance leído desde la imagen. ¿Deseas continuar?",
+    );
+
+    if (!confirmed) return;
+
+    const saved = loadChecklistProgress();
+    setFeedback(
+      saved
+        ? { tone: "success", message: "Avance de la checklist cargado y guardado." }
+        : {
+            tone: "error",
+            message: "El avance se cargó, pero el navegador no permitió guardarlo.",
+          },
+    );
+  }
+
   return (
     <section aria-labelledby="data-tools-title" className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
       <div className="max-w-2xl">
@@ -69,6 +87,14 @@ export function AlbumDataTools() {
       </div>
 
       <div className="mt-5 flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={confirmChecklistLoad}
+          disabled={!isReady}
+          className="data-tool-button bg-lime-300 text-emerald-950 hover:bg-lime-200"
+        >
+          Cargar avance de la imagen
+        </button>
         <button type="button" onClick={exportProgress} disabled={!isReady} className="data-tool-button bg-emerald-950 text-white hover:bg-emerald-800">
           Exportar JSON
         </button>

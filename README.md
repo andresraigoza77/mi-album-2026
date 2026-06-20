@@ -11,10 +11,13 @@ Aplicación web móvil primero para controlar una colección de figuritas de fú
 - Copia de listas y uso compartido por WhatsApp.
 - Persistencia automática en `localStorage`.
 - Exportación, importación validada y reinicio del progreso.
+- Carga voluntaria del avance inicial leído desde la checklist física.
 - PWA instalable con soporte offline básico.
 - Interfaz responsive y accesible mediante teclado.
 
 El archivo de datos también incluye 18 figuritas especiales. El seguimiento interactivo actual comprende las 960 figuritas de las selecciones.
+
+En el dashboard, el botón **Cargar avance de la imagen** reemplaza el estado actual —previa confirmación— por las X azules interpretadas como figuritas conseguidas. Las figuritas no marcadas quedan como faltantes y ninguna se carga como repetida. La acción no se ejecuta automáticamente, por lo que los cambios manuales posteriores se conservan normalmente.
 
 ## Tecnologías
 

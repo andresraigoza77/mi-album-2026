@@ -2,7 +2,11 @@
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
-import { changeStickerState, initializeAlbumState } from "@/lib/albumState";
+import {
+  changeStickerState,
+  createStateFromOwnedChecklist,
+  initializeAlbumState,
+} from "@/lib/albumState";
 import {
   loadAlbumState,
   saveAlbumState,
@@ -16,6 +20,7 @@ type AlbumStateContextValue = {
   isReady: boolean;
   changeSticker: (teamCode: string, stickerNumber: number) => void;
   importAlbum: (rawValue: string) => AlbumImportResult;
+  loadChecklistProgress: () => boolean;
   resetAlbum: () => void;
 };
 
@@ -53,8 +58,17 @@ export function AlbumStateProvider({ children }: { children: ReactNode }) {
     setState(initializeAlbumState());
   }
 
+  function loadChecklistProgress(): boolean {
+    const checklistState = createStateFromOwnedChecklist();
+    const saved = saveAlbumState(window.localStorage, checklistState);
+    setState(checklistState);
+    return saved;
+  }
+
   return (
-    <AlbumStateContext.Provider value={{ state, isReady, changeSticker, importAlbum, resetAlbum }}>
+    <AlbumStateContext.Provider
+      value={{ state, isReady, changeSticker, importAlbum, loadChecklistProgress, resetAlbum }}
+    >
       {children}
     </AlbumStateContext.Provider>
   );

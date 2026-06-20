@@ -1,4 +1,5 @@
 import { albumTeams } from "@/lib/albumData";
+import { ownedFromChecklist } from "@/lib/ownedFromChecklist";
 import type {
   AlbumProgress,
   AlbumState,
@@ -23,6 +24,42 @@ export function initializeAlbumState(teams: readonly Team[] = albumTeams): Album
       Array.from<StickerStatus>({ length: team.stickerCount }).fill(INITIAL_STICKER_STATUS),
     ]),
   );
+}
+
+/** Creates a fresh state using the owned stickers read from the physical checklist. */
+export function createStateFromOwnedChecklist(
+  teams: readonly Team[] = albumTeams,
+): AlbumState {
+  const initialState = initializeAlbumState(teams);
+  const nextState: Record<string, StickerStatus[]> = Object.fromEntries(
+    Object.entries(initialState).map(([teamCode, stickers]) => [teamCode, [...stickers]]),
+  );
+
+  for (const [teamCode, stickerNumbers] of Object.entries(ownedFromChecklist)) {
+    const teamStickers = nextState[teamCode];
+
+    if (!teamStickers) {
+      throw new Error(`El equipo ${teamCode} de la checklist no existe en el álbum.`);
+    }
+
+    for (const stickerNumber of stickerNumbers) {
+      if (!Number.isInteger(stickerNumber) || stickerNumber < 1 || stickerNumber > 20) {
+        throw new RangeError(
+          `La figurita ${stickerNumber} de ${teamCode} está fuera del rango 1–20.`,
+        );
+      }
+
+      if (stickerNumber > teamStickers.length) {
+        throw new RangeError(
+          `La figurita ${stickerNumber} no existe en el estado del equipo ${teamCode}.`,
+        );
+      }
+
+      teamStickers[stickerNumber - 1] = "owned";
+    }
+  }
+
+  return nextState;
 }
 
 /** Returns the next value in the missing → owned → duplicate → missing cycle. */
