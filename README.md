@@ -1,6 +1,6 @@
 # Mi Álbum 2026
 
-Aplicación web móvil primero para controlar una colección de figuritas de fútbol 2026. El progreso siempre se guarda localmente y, de forma opcional, puede sincronizarse por usuario mediante Supabase.
+Aplicación web móvil primero para controlar una colección de figuritas de fútbol 2026. El acceso requiere iniciar sesión con Google y el progreso se sincroniza por usuario mediante Supabase, con `localStorage` como respaldo local.
 
 ## Funcionalidades
 
@@ -10,7 +10,8 @@ Aplicación web móvil primero para controlar una colección de figuritas de fú
 - Listas de faltantes y repetidas agrupadas por país.
 - Copia de listas y uso compartido por WhatsApp.
 - Persistencia automática en `localStorage`.
-- Inicio de sesión con Google y respaldo opcional del progreso en Supabase.
+- Acceso protegido mediante inicio de sesión con Google.
+- Sincronización automática del progreso en Supabase.
 - Exportación, importación validada y reinicio del progreso.
 - Carga voluntaria del avance inicial leído desde la checklist física.
 - PWA instalable con soporte offline básico.
@@ -51,7 +52,7 @@ npm install
 npm run dev
 ```
 
-Abre [http://localhost:3000](http://localhost:3000). El progreso permanece únicamente en el almacenamiento local de ese navegador.
+Abre [http://localhost:3000](http://localhost:3000). La pantalla de acceso solicitará iniciar sesión con Google antes de mostrar cualquier ruta del álbum.
 
 Para habilitar autenticación y sincronización en la nube, crea `.env.local` con:
 
@@ -143,7 +144,8 @@ public/       Manifest, service worker e iconos PWA
 
 ## Privacidad y alcance
 
-- El login con Google es opcional; sin sesión, la app continúa funcionando únicamente con `localStorage`.
+- El login con Google es obligatorio para acceder a la aplicación.
+- `localStorage` conserva una copia local de respaldo, pero no habilita el acceso sin sesión.
 - Con sesión iniciada, el progreso se sincroniza con `public.album_progress` en Supabase.
 - No se incluye analítica.
 - No se utilizan marcas, logos ni imágenes oficiales.

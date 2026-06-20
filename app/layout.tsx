@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 
 import { AlbumStateProvider } from "@/components/AlbumStateProvider";
+import { AuthGate } from "@/components/AuthGate";
 import { PwaRegistration } from "@/components/PwaRegistration";
 import { SiteHeader } from "@/components/SiteHeader";
 
@@ -47,16 +48,18 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body className={`${geist.variable} min-h-screen bg-slate-50 text-slate-900 antialiased`}>
         <AlbumStateProvider>
           <PwaRegistration />
-          <a href="#contenido-principal" className="skip-link">
-            Saltar al contenido principal
-          </a>
-          <SiteHeader />
-          <main id="contenido-principal" tabIndex={-1} className="mx-auto min-h-[calc(100vh-8rem)] w-full max-w-6xl px-4 py-7 sm:px-6 sm:py-10">{children}</main>
-          <footer className="border-t border-slate-200 bg-white">
-            <div className="mx-auto max-w-6xl px-4 py-6 text-center text-sm text-slate-500 sm:px-6">
-              Mi Álbum 2026 · Proyecto independiente sin marcas ni recursos oficiales.
-            </div>
-          </footer>
+          <AuthGate>
+            <a href="#contenido-principal" className="skip-link">
+              Saltar al contenido principal
+            </a>
+            <SiteHeader />
+            <main id="contenido-principal" tabIndex={-1} className="mx-auto min-h-[calc(100vh-8rem)] w-full max-w-6xl px-4 py-7 sm:px-6 sm:py-10">{children}</main>
+            <footer className="border-t border-slate-200 bg-white">
+              <div className="mx-auto max-w-6xl px-4 py-6 text-center text-sm text-slate-500 sm:px-6">
+                Mi Álbum 2026 · Proyecto independiente sin marcas ni recursos oficiales.
+              </div>
+            </footer>
+          </AuthGate>
         </AlbumStateProvider>
       </body>
     </html>
